@@ -1,0 +1,17 @@
+Ripple-65B-Preview NVFP4 + FP8 attention: recipe and tools
+Copyright 2026 BertholomusAI (Albert Lee, github.com/bertholomus)
+
+Licensed under the Apache License, Version 2.0 (see LICENSE).
+
+This repository holds our scripts only. It contains no model weights and no Ricursive code.
+recipe/serve.py downloads, at run time, from their own repositories:
+  - ricursiveAI/Ripple-65B-Preview-NVFP4 @ 99eea4477a001a41b86914e41feb4b2ed86105e5 (Apache-2.0):
+    inference/local/model.py, ripple_format.py, spark.py and chat_template.jinja, used unchanged;
+  - ricursiveAI/Ripple-65B-Preview-DFlash2 (Apache-2.0), the drafter, used unchanged;
+  - bertholomus/Ripple-65B-Preview-NVFP4-FP8Attn, the weights (a modified version of Ricursive's NVFP4 checkpoint).
+recipe/serve.py follows the structure of Ricursive's inference/local/spark.py (Apache-2.0) and calls its
+check_checkpoints() and run_worker() unchanged.
+
+tools/kld/kld_prompts.json holds prompt text from UltraChat-200k (MIT), GSM8K (MIT) and MBPP (CC BY 4.0).
+
+Not affiliated with or endorsed by Ricursive.
