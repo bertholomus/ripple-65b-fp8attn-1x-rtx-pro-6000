@@ -18,7 +18,9 @@ def gold(a):
 
 def one(it):
     q = it["question"] + "\n\nGive the final answer as a number on the last line, after 'Answer:'."
-    body = {"model": "x", "messages": [{"role": "user", "content": q}], "max_tokens": 4096, "temperature": 0}
+    body = {"model": "x", "messages": [{"role": "user", "content": q}], "max_tokens": 4096}
+    if __import__("os").environ.get("GSM8K_GREEDY", "1") == "1":
+        body["temperature"] = 0  # greedy; GSM8K_GREEDY=0 uses the server's default sampling
     r = json.load(urllib.request.urlopen(urllib.request.Request(URL, json.dumps(body).encode(),
                                                                 {"Content-Type": "application/json"}), timeout=1800))
     c = r["choices"][0]

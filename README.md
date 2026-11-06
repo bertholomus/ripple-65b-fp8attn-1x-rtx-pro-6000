@@ -7,6 +7,8 @@ It is built from Ricursive's own [ricursiveAI/Ripple-65B-Preview-NVFP4](https://
 unchanged. Only the 400 attention projections, which Ricursive ships in BF16, are now FP8 with calibrated static scales.
 Model and weights © Ricursive under Apache-2.0. Not affiliated with or endorsed by Ricursive.
 
+Recipe and gate tools on GitHub: **https://github.com/bertholomus/ripple-65b-fp8attn-1x-rtx-pro-6000**
+
 Served with SGLang 0.5.19 and Ricursive's DFlash2 drafter ([ricursiveAI/Ripple-65B-Preview-DFlash2](https://huggingface.co/ricursiveAI/Ripple-65B-Preview-DFlash2), Apache-2.0, used as is and not redistributed here).
 
 ## Measured on one RTX PRO 6000 Blackwell Max-Q (96 GB, 300 W)
@@ -34,14 +36,22 @@ Why FP8 attention: a decode step reads all weights once. The attention projectio
 |---|---|
 | KL divergence per token vs the NVFP4 source checkpoint, 120 held-out prompts, 40,461 positions | **0.0117** (95% CI 0.0102–0.0134) |
 | top-1 token agreement with the NVFP4 source checkpoint | **96.4%** |
-| GSM8K, 150 test items (`test[200:350]`), greedy, 4,096-token budget | **143 / 150** |
+| GSM8K, 150 test items (`test[200:350]`), 4,096-token budget | **143 / 150** greedy; **143, 144, 144** sampled (3 runs) |
 | 12 small Python tasks with hidden asserts, greedy | **12 / 12** |
 | tool call (streamed and non-streamed arguments equal), two-turn tool use | pass |
+
+On GSM8K, 4–5 items per run hit the 4,096-token budget while the model was still deliberating over an ambiguous question; they count as wrong.
 
 KL divergence is measured against the NVFP4 checkpoint this build is made from, not against BF16. Method: the source writes a
 384-token continuation per prompt (temperature 0.6), then both are teacher-forced on the same tokens with drafting off at
 concurrency 1; KL(source ‖ this) over the source's top-20 tokens per position. Held-out prompts: UltraChat-200k
 `test_sft[1000:1060]`, GSM8K `train[:30]`, MBPP `train[:30]`.
+
+## Reasoning
+
+Ripple decides by itself whether to reason. The prompt only opens the assistant turn; the model writes a `<think>` block first when it judges that the question needs one (harder maths, tool-using agent turns) and answers directly otherwise (simple questions, most plain code requests). There is no on/off switch: `reasoning_effort` and `enable_thinking` change nothing. The prompt does steer it: "think step by step" makes it reason, and a prefilled empty `<think></think>` makes it skip. SGLang's `ripple` reasoning parser returns the block as `reasoning_content`.
+
+**Use sampling, not greedy decoding, for real work.** At temperature 0 the model can repeat itself inside a long reasoning block until the token limit. This build's `generation_config.json` sets `temperature 0.6, top_p 0.95, top_k 20`, and SGLang applies them to every request that does not set its own values. With these defaults the same prompts finish normally.
 
 Weights: **https://huggingface.co/bertholomus/Ripple-65B-Preview-NVFP4-FP8Attn**
 
@@ -84,12 +94,14 @@ wheels ship only `libcublas.so.13` / `libcublasLt.so.13`, so the link fails with
 ## Credits
 
 - Ricursive: Ripple-65B-Preview, the NVFP4 checkpoint this build keeps byte-for-byte, the DFlash2 drafter, and the inference code
-  (`inference/local/`, chat template), all Apache-2.0. Files from Ricursive's repo are included unchanged.
+  (`inference/local/`, chat template), all Apache-2.0. Files from Ricursive's repo are included unchanged,
+  except `generation_config.json`, which adds the sampling defaults above.
 - SGLang and FlashInfer projects (Apache-2.0): ModelOpt mixed-precision loader, FP8 and NVFP4 kernels.
 - Calibration prompts: UltraChat-200k (MIT), HumanEval (MIT), GSM8K (MIT), MBPP (CC BY 4.0). Only derived scalar maxima are distributed.
 
 License: Apache-2.0, as the base model. This is a modified version of Ricursive's NVFP4 checkpoint: attention weights were re-quantized and
-`config.json` / `hf_quant_config.json` carry the new `quantization_config`. Everything else is unchanged.
+`config.json` / `hf_quant_config.json` carry the new `quantization_config`, and `generation_config.json` adds sampling
+defaults. Everything else is unchanged.
 
 BertholomusAI · [huggingface.co/bertholomus](https://huggingface.co/bertholomus) · [github.com/bertholomus](https://github.com/bertholomus)
 
